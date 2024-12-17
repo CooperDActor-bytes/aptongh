@@ -24,10 +24,10 @@ jobs:
 
     - name: Setup Ubuntu mirror configuration (using II Net Australia)
       run: |
-        # Create and configure apt-mirror list for Ubuntu
-        echo "set base_path    /var/spool/apt-mirror" > /etc/apt/mirror.list
-        echo "deb http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" >> /etc/apt/mirror.list
-        echo "deb-src http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" >> /etc/apt/mirror.list
+        # Use sudo to create and configure apt-mirror list for Ubuntu
+        echo "set base_path    /var/spool/apt-mirror" | sudo tee /etc/apt/mirror.list > /dev/null
+        echo "deb http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" | sudo tee -a /etc/apt/mirror.list > /dev/null
+        echo "deb-src http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" | sudo tee -a /etc/apt/mirror.list > /dev/null
 
     - name: Run apt-mirror to download Ubuntu repository
       run: |
