@@ -22,7 +22,7 @@ jobs:
       run: |
         mkdir -p ./apt-repos
 
-    - name: Download APT repository files one by one
+    - name: Download APT repository .deb files one by one
       run: |
         # List of base URLs for Debian and Ubuntu repositories (adjust for your needs)
         BASE_URLS=(
@@ -33,18 +33,18 @@ jobs:
         # Loop through each base URL (Debian/Ubuntu repositories)
         for BASE_URL in "${BASE_URLS[@]}"; do
           # Use wget to recursively download all .deb files
-          wget -r -np -nH --cut-dirs=3 -R "index.html*" -P ./apt-repos "$BASE_URL"
+          wget -r -l1 -np -nH --reject "index.html*" --accept "*.deb" -P ./apt-repos "$BASE_URL"
           
           # Find all downloaded .deb files and push them one by one
           find ./apt-repos -type f -name "*.deb" | while read file; do
-            # Extract filename from the path
-            filename=$(basename "$file")
+            # Extract the relative path from the root of the repository
+            relative_path=$(realpath --relative-to=$(pwd) "$file")
             
             # Add the .deb file to the repository
-            git add "$file"
+            git add "$relative_path"
             
             # Commit and push each file one by one
-            git commit -m "Add $filename"
+            git commit -m "Add $relative_path"
             git push origin HEAD
           done
         done
