@@ -1,4 +1,4 @@
-name: Download and Push All APT .deb Files One by One
+name: APT download
 
 on:
   workflow_dispatch:  # Allows manual triggering
@@ -13,6 +13,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Set up Git configuration
+      run: |
+        git config --global user.name "CooperDActor-bytes"
+        git config --global user.email "kiaora@salty.cool"
+        
     - name: Install wget
       run: |
         sudo apt-get update
@@ -22,7 +27,7 @@ jobs:
       run: |
         mkdir -p ./apt-repos
 
-    - name: Download APT repository .deb files one by one
+    - name: Download APT repository files one by one
       run: |
         # List of base URLs for Debian and Ubuntu repositories (adjust for your needs)
         BASE_URLS=(
@@ -32,19 +37,15 @@ jobs:
         
         # Loop through each base URL (Debian/Ubuntu repositories)
         for BASE_URL in "${BASE_URLS[@]}"; do
-          # Use wget to recursively download all .deb files
-          wget -r -l1 -np -nH --reject "index.html*" --accept "*.deb" -P ./apt-repos "$BASE_URL"
-          
-          # Find all downloaded .deb files and push them one by one
-          find ./apt-repos -type f -name "*.deb" | while read file; do
-            # Extract the relative path from the root of the repository
-            relative_path=$(realpath --relative-to=$(pwd) "$file")
-            
-            # Add the .deb file to the repository
-            git add "$relative_path"
-            
-            # Commit and push each file one by one
-            git commit -m "Add $relative_path"
-            git push origin HEAD
-          done
+          # Use wget to recursively download all .deb files (ensure only .deb files are downloaded)
+          wget -r -np -nH --cut-dirs=3 -A "*.deb" -P ./apt-repos "$BASE_URL"
         done
+
+    - name: Push downloaded .deb files to GitHub
+      run: |
+        # Add all downloaded .deb files
+        git add ./apt-repos/**/*.deb
+        
+        # Commit and push the changes
+        git commit -m "Add .deb files from APT repositories"
+        git push origin HEAD
