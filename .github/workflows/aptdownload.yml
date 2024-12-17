@@ -1,79 +1,50 @@
-name: Mirror APT Repositories
+name: Download and Push All APT .deb Files One by One
 
-# Trigger for manual run and scheduled run
 on:
-  workflow_dispatch: # Allows manual triggering of the workflow
+  workflow_dispatch:  # Allows manual triggering
   schedule:
-    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
+    - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
 
 jobs:
-  apt-mirror:
+  download-and-push:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Step 2: Install Git LFS
-    - name: Install Git LFS
+    - name: Install wget
       run: |
         sudo apt-get update
-        sudo apt-get install -y git-lfs
-        git lfs install
+        sudo apt-get install -y wget
 
-    # Step 3: Install apt-mirror
-    - name: Install apt-mirror
+    - name: Setup download directory
       run: |
-        sudo apt-get install -y apt-mirror
+        mkdir -p ./apt-repos
 
-    # Step 4: Setup apt-mirror configuration (use a user-accessible directory to avoid permission issues)
-    - name: Setup apt-mirror configuration
+    - name: Download APT repository files one by one
       run: |
-        sudo mkdir -p /var/spool/apt-mirror
-        sudo mkdir -p /etc/apt
-        sudo bash -c 'cat > /etc/apt/mirror.list <<EOF
-set base_path    /var/spool/apt-mirror
-set nthreads     20
-set _tilde       0
-
-# Debian repositories
-deb http://deb.debian.org/debian stable main contrib non-free
-deb http://deb.debian.org/debian testing main contrib non-free
-deb http://deb.debian.org/debian unstable main contrib non-free
-
-# Ubuntu repositories
-deb http://archive.ubuntu.com/ubuntu focal main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-
-clean http://deb.debian.org/debian
-clean http://archive.ubuntu.com/ubuntu
-EOF'
-
-    # Step 5: Run apt-mirror
-    - name: Run apt-mirror
-      run: |
-        sudo apt-mirror || { echo "apt-mirror failed! Check your configuration."; exit 1; }
-
-    # Step 6: Move mirrored files into the repo's directory
-    - name: Move mirrored files
-      run: |
-        mkdir -p ./mirror
-        sudo cp -r /var/spool/apt-mirror/mirror/* ./mirror/
-
-    # Step 7: Track large files with Git LFS
-    - name: Track large files with Git LFS
-      run: |
-        git lfs track "*"
-        git add .gitattributes
-        git add ./mirror
-
-    # Step 8: Commit and push changes
-    - name: Commit and push changes
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git config user.name "SaltyBot"
-        git config user.email "Bots@salty.cool"
-        git commit -m "Update APT mirror: $(date -u)" || echo "No changes to commit."
-        git push origin HEAD
+        # List of base URLs for Debian and Ubuntu repositories (adjust for your needs)
+        BASE_URLS=(
+          "http://deb.debian.org/debian/dists/stable/main/binary-amd64/"
+          "http://archive.ubuntu.com/ubuntu/dists/focal/main/binary-amd64/"
+        )
+        
+        # Loop through each base URL (Debian/Ubuntu repositories)
+        for BASE_URL in "${BASE_URLS[@]}"; do
+          # Use wget to recursively download all .deb files
+          wget -r -np -nH --cut-dirs=3 -R "index.html*" -P ./apt-repos "$BASE_URL"
+          
+          # Find all downloaded .deb files and push them one by one
+          find ./apt-repos -type f -name "*.deb" | while read file; do
+            # Extract filename from the path
+            filename=$(basename "$file")
+            
+            # Add the .deb file to the repository
+            git add "$file"
+            
+            # Commit and push each file one by one
+            git commit -m "Add $filename"
+            git push origin HEAD
+          done
+        done
