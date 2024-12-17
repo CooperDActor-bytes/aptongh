@@ -13,29 +13,29 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install wget
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget
+        sudo apt-get install -y wget git apt-mirror
 
-    - name: Setup download directory
+    - name: Clone the Debian mirror Git repository
       run: |
-        mkdir -p ./apt-repos/Debian
-        mkdir -p ./apt-repos/Ubuntu
+        git clone https://salsa.debian.org/mirror-team/archvsync.git ./apt-repos/Debian
 
-    - name: Download Debian APT repository files
+    - name: Setup Ubuntu mirror configuration (using II Net Australia)
       run: |
-        # Download files from Debian repository (modify URL as needed)
-        wget -r -np -nH --cut-dirs=3 -R "index.html*" -P ./apt-repos/Debian http://deb.debian.org/debian/dists/stable/main/binary-amd64/
+        # Create and configure apt-mirror list for Ubuntu
+        echo "set base_path    /var/spool/apt-mirror" > /etc/apt/mirror.list
+        echo "deb http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" >> /etc/apt/mirror.list
+        echo "deb-src http://mirror.internode.on.net/pub/ubuntu/ focal main restricted universe multiverse" >> /etc/apt/mirror.list
 
-    - name: Download Ubuntu APT repository files
+    - name: Run apt-mirror to download Ubuntu repository
       run: |
-        # Download files from Ubuntu repository (modify URL as needed)
-        wget -r -np -nH --cut-dirs=3 -R "index.html*" -P ./apt-repos/Ubuntu http://archive.ubuntu.com/ubuntu/dists/focal/main/binary-amd64/
+        sudo apt-mirror
 
     - name: Add, commit, and push files
       run: |
-        # Add all the downloaded files
+        # Add the downloaded files (Debian and Ubuntu repos)
         git add ./apt-repos/
 
         # Commit the changes
