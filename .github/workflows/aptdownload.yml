@@ -3,77 +3,68 @@ name: Mirror APT Repositories
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
 
 jobs:
   apt-mirror:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Step 2: Set up Git LFS
     - name: Install Git LFS
       run: |
         sudo apt-get update
         sudo apt-get install -y git-lfs
         git lfs install
 
-    # Step 3: Install apt-mirror
     - name: Install apt-mirror
       run: |
         sudo apt-get install -y apt-mirror
 
-    # Step 4: Configure apt-mirror
-        - name: Setup apt-mirror configuration
+    - name: Setup apt-mirror configuration
       run: |
         sudo mkdir -p /var/spool/apt-mirror
         sudo mkdir -p /etc/apt
-        echo "
-        set base_path    /var/spool/apt-mirror
-        set nthreads     20
-        set _tilde       0
+        sudo bash -c 'cat > /etc/apt/mirror.list <<EOF
+set base_path    /var/spool/apt-mirror
+set nthreads     20
+set _tilde       0
 
-        # Debian repositories
-        deb http://deb.debian.org/debian stable main contrib non-free
-        deb http://deb.debian.org/debian testing main contrib non-free
-        deb http://deb.debian.org/debian unstable main contrib non-free
+# Debian repositories
+deb http://deb.debian.org/debian stable main contrib non-free
+deb http://deb.debian.org/debian testing main contrib non-free
+deb http://deb.debian.org/debian unstable main contrib non-free
 
-        # Ubuntu repositories
-        deb http://archive.ubuntu.com/ubuntu focal main restricted universe multiverse
-        deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+# Ubuntu repositories
+deb http://archive.ubuntu.com/ubuntu focal main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
 
-        clean http://deb.debian.org/debian
-        clean http://archive.ubuntu.com/ubuntu
-        " | sudo tee /etc/apt/mirror.list > /dev/null
+clean http://deb.debian.org/debian
+clean http://archive.ubuntu.com/ubuntu
+EOF'
 
-
-    # Step 5: Run apt-mirror
     - name: Run apt-mirror
       run: |
-        apt-mirror || { echo "apt-mirror failed! Check your configuration."; exit 1; }
+        sudo apt-mirror || { echo "apt-mirror failed! Check your configuration."; exit 1; }
 
-    # Step 6: Move mirrored files to the repository
     - name: Move mirrored files
       run: |
         mkdir -p ./mirror
-        cp -r /var/spool/apt-mirror/mirror/* ./mirror/
+        sudo cp -r /var/spool/apt-mirror/mirror/* ./mirror/
 
-    # Step 7: Track mirrored files with Git LFS
     - name: Track large files with Git LFS
       run: |
         git lfs track "*"
         git add .gitattributes
         git add ./mirror
 
-    # Step 8: Commit and push changes
     - name: Commit and push changes
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git commit -m "Update APT mirror: $(date -u)"
+        git config user.name "SaltyBot"
+        git config user.email "Bots@salty.cool"
+        git commit -m "Update APT mirror: $(date -u)" || echo "No changes to commit."
         git push origin HEAD
