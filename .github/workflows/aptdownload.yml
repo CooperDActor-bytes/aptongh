@@ -1,4 +1,4 @@
-name: APT download
+name: Clone and Push APT Repositories
 
 on:
   workflow_dispatch:  # Allows manual triggering
@@ -6,7 +6,7 @@ on:
     - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
 
 jobs:
-  download-and-push:
+  clone-and-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,36 +16,29 @@ jobs:
     - name: Set up Git configuration
       run: |
         git config --global user.name "CooperDActor-bytes"
-        git config --global user.email "kiaora@salty.cool"
+        git config --global user.email "cooper@salty.cool"
         
-    - name: Install wget
+    - name: Set up Git LFS
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget
+        git lfs install
 
-    - name: Setup download directory
+    - name: Clone Debian repository into "Debian" folder
       run: |
-        mkdir -p ./apt-repos
+        # Clone the Debian repository into the "Debian" folder
+        git clone --depth 1 http://deb.debian.org/debian ./apt-repos/Debian
 
-    - name: Download APT repository files one by one
+    - name: Clone Ubuntu repository into "Ubuntu" folder
       run: |
-        # List of base URLs for Debian and Ubuntu repositories (adjust for your needs)
-        BASE_URLS=(
-          "http://deb.debian.org/debian/dists/stable/main/binary-amd64/"
-          "http://archive.ubuntu.com/ubuntu/dists/focal/main/binary-amd64/"
-        )
+        # Clone the Ubuntu repository into the "Ubuntu" folder
+        git clone --depth 1 http://archive.ubuntu.com/ubuntu ./apt-repos/Ubuntu
+
+    - name: Add, commit and push repositories
+      run: |
+        # Add all the new files in the cloned directories
+        git add ./apt-repos/Debian ./apt-repos/Ubuntu
         
-        # Loop through each base URL (Debian/Ubuntu repositories)
-        for BASE_URL in "${BASE_URLS[@]}"; do
-          # Use wget to recursively download all .deb files (ensure only .deb files are downloaded)
-          wget -r -np -nH --cut-dirs=3 -A "*.deb" -P ./apt-repos "$BASE_URL"
-        done
+        # Commit the changes
+        git commit -m "Clone Debian and Ubuntu APT repositories"
 
-    - name: Push downloaded .deb files to GitHub
-      run: |
-        # Add all downloaded .deb files
-        git add ./apt-repos/**/*.deb
-        
-        # Commit and push the changes
-        git commit -m "Add .deb files from APT repositories"
+        # Push the changes to the GitHub repository
         git push origin HEAD
