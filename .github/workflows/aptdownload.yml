@@ -27,10 +27,10 @@ jobs:
         sudo apt-get install -y apt-mirror
 
     # Step 4: Configure apt-mirror
-    - name: Setup apt-mirror configuration
+        - name: Setup apt-mirror configuration
       run: |
-        mkdir -p /var/spool/apt-mirror
-        mkdir -p /etc/apt
+        sudo mkdir -p /var/spool/apt-mirror
+        sudo mkdir -p /etc/apt
         echo "
         set base_path    /var/spool/apt-mirror
         set nthreads     20
@@ -47,7 +47,8 @@ jobs:
 
         clean http://deb.debian.org/debian
         clean http://archive.ubuntu.com/ubuntu
-        " > /etc/apt/mirror.list
+        " | sudo tee /etc/apt/mirror.list > /dev/null
+
 
     # Step 5: Run apt-mirror
     - name: Run apt-mirror
