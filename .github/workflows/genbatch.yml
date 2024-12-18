@@ -14,13 +14,15 @@ jobs:
       - name: Install apt-mirror
         run: sudo apt-get update && sudo apt-get install -y apt-mirror
 
-      - name: Create apt-mirror configuration
+      - name: Create apt-mirror directories and configuration
         run: |
-          mkdir -p apt-mirror-cache
+          sudo mkdir -p /apt-mirror-cache/var/spool/apt-mirror
+          sudo mkdir -p /apt-mirror-cache/var
+          sudo mkdir -p /apt-mirror-cache/skel
           echo "
           set base_path /apt-mirror-cache
           set mirror_path /apt-mirror-cache/var/spool/apt-mirror
-          set skel_path /apt-mirror-cache/var/spool/apt-mirror/skel
+          set skel_path /apt-mirror-cache/skel
           set var_path /apt-mirror-cache/var
           set clean_interval daily
           set nthreads 20
@@ -29,16 +31,15 @@ jobs:
           deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
           deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
           deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-          " > apt-mirror-cache/mirror.list
+          " | sudo tee /apt-mirror-cache/mirror.list
 
       - name: Run apt-mirror dry-run
-        run: |
-          apt-mirror --config=apt-mirror-cache/mirror.list --dry-run
+        run: sudo apt-mirror --config=/apt-mirror-cache/mirror.list --dry-run
 
       - name: Extract URLs from metadata
         run: |
           mkdir -p batch-files
-          grep -oP 'http.*\.deb' apt-mirror-cache/var/spool/apt-mirror/mirror/*/dists/*/binary-*/Packages > urls.txt
+          grep -oP 'http.*\.deb' /apt-mirror-cache/var/spool/apt-mirror/mirror/*/dists/*/binary-*/Packages > urls.txt
           echo "Generated URLs list: $(wc -l urls.txt) entries"
 
       - name: Split URLs into batches of 1,000
