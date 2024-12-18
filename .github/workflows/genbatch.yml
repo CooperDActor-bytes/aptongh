@@ -1,0 +1,43 @@
+name: Generate and Split URL List
+
+on:
+  workflow_dispatch: # Allows manual trigger of this workflow
+
+jobs:
+  generate-batches:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Install apt-mirror
+        run: sudo apt-get update && sudo apt-get install -y apt-mirror
+
+      - name: Run apt-mirror dry-run
+        run: |
+          mkdir -p apt-mirror-cache
+          cd apt-mirror-cache
+          apt-mirror --dry-run
+          cd ..
+
+      - name: Extract URLs from metadata
+        run: |
+          mkdir -p batch-files
+          grep -oP 'http.*\.deb' apt-mirror-cache/var/spool/apt-mirror/mirror/*/dists/*/binary-*/Packages > urls.txt
+          echo "Generated URLs list: $(wc -l urls.txt) entries"
+
+      - name: Split URLs into batches of 1,000
+        run: |
+          split -l 1000 urls.txt batch-files/batch_
+          echo "Split URLs into $(ls batch-files | wc -l) batches"
+
+      - name: Commit and push batch files
+        run: |
+          mkdir -p batches
+          mv batch-files/* batches/
+          git config user.name "SaltyBot[bot]"
+          git config user.email "bots@salty.cool"
+          git add batches/
+          git commit -m "indexed the debian and ubuntu archive"
+          git push
