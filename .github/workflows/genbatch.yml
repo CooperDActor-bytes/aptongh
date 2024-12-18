@@ -14,26 +14,28 @@ jobs:
       - name: Install apt-mirror
         run: sudo apt-get update && sudo apt-get install -y apt-mirror
 
-      - name: Create apt-mirror directories and configuration
-        run: |
-          sudo mkdir -p /apt-mirror-cache/var/spool/apt-mirror
-          sudo mkdir -p /apt-mirror-cache/var
-          sudo mkdir -p /apt-mirror-cache/skel
-          echo "
-          set base_path    /apt-mirror-cache
-          set mirror_path  \$base_path/var/spool/apt-mirror
-          set skel_path    \$base_path/skel
-          set var_path     \$base_path/var
-          set clean_interval daily
-          set nthreads     20
-          set _tilde       0
 
-          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
-          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-          " | sudo tee /apt-mirror-cache/mirror.list
-          sudo chmod -R 777 /apt-mirror-cache
-          cat /apt-mirror-cache/mirror.list
+- name: Create apt-mirror directories and configuration
+  run: |
+    sudo mkdir -p /apt-mirror-cache/var/spool/apt-mirror
+    sudo mkdir -p /apt-mirror-cache/var
+    sudo mkdir -p /apt-mirror-cache/skel
+    echo "
+    set base_path    /apt-mirror-cache
+    set mirror_path  /apt-mirror-cache/var/spool/apt-mirror
+    set skel_path    /apt-mirror-cache/skel
+    set var_path     /apt-mirror-cache/var
+    set clean_interval daily
+    set nthreads     20
+    set _tilde       0
+
+    deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+    deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+    deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+    " | sudo tee /apt-mirror-cache/mirror.list
+    sudo chmod -R 777 /apt-mirror-cache
+    cat /apt-mirror-cache/mirror.list
+
 
       - name: Debug apt-mirror dry-run
         run: |
