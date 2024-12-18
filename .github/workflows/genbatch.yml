@@ -19,18 +19,29 @@ jobs:
           for package in $(apt list --installed | awk '{print $1}' | tail -n +2); do
               apt-cache showpkg "$package" | grep 'Filename' | sed 's/Filename: //' >> urls.txt
           done
+          echo "Generated URLs list: $(wc -l urls.txt) entries"
+
+      - name: Check if URLs file is generated
+        run: |
+          if [ -f urls.txt ]; then
+            echo "urls.txt found with $(wc -l < urls.txt) entries"
+          else
+            echo "urls.txt not found or is empty"
+            exit 1
+          fi
 
       - name: Split URLs into batches of 1,000
         run: |
           split -l 1000 urls.txt batch-files/batch_
-          echo "Split URLs into $(ls batch-files | wc -l) batches"
+          echo "Split files count: $(ls batch-files | wc -l)"
+          ls -l batch-files
 
       - name: Commit and push batch files
         run: |
           mkdir -p batches
           mv batch-files/* batches/
-          git config user.name "SaltyBot[bot]"
-          git config user.email "bots@salty.cool"
+          git config user.name "YourBot"
+          git config user.email "your-email@example.com"
           git add batches/
           git commit -m "Indexed package URLs"
           git push
