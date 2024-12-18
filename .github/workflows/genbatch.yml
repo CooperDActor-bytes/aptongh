@@ -15,8 +15,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y apt-mirror
 
 
-- name: Create apt-mirror directories and configuration
-  run: |
+      - name: Create apt-mirror directories and configuration
+        run: |
     sudo mkdir -p /apt-mirror-cache/var/spool/apt-mirror
     sudo mkdir -p /apt-mirror-cache/var
     sudo mkdir -p /apt-mirror-cache/skel
