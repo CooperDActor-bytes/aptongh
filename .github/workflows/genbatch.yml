@@ -1,7 +1,7 @@
 name: Generate and Split URL List
 
 on:
-  workflow_dispatch: # Allows manual trigger of this workflow
+  workflow_dispatch: # Manual trigger
 
 jobs:
   generate-batches:
@@ -20,23 +20,27 @@ jobs:
           sudo mkdir -p /apt-mirror-cache/var
           sudo mkdir -p /apt-mirror-cache/skel
           echo "
-          set base_path /apt-mirror-cache
-          set mirror_path /apt-mirror-cache/var/spool/apt-mirror
-          set skel_path /apt-mirror-cache/skel
-          set var_path /apt-mirror-cache/var
+          set base_path    /apt-mirror-cache
+          set mirror_path  \$base_path/var/spool/apt-mirror
+          set skel_path    \$base_path/skel
+          set var_path     \$base_path/var
           set clean_interval daily
-          set nthreads 20
-          set _tilde 0
-          
+          set nthreads     20
+          set _tilde       0
+
           deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
           deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
           deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
           " | sudo tee /apt-mirror-cache/mirror.list
+          sudo chmod -R 777 /apt-mirror-cache
+          cat /apt-mirror-cache/mirror.list
 
-      - name: Run apt-mirror dry-run
-        run: sudo apt-mirror --config=/apt-mirror-cache/mirror.list --dry-run
+      - name: Debug apt-mirror dry-run
+        run: |
+          sudo apt-mirror --config=/apt-mirror-cache/mirror.list --dry-run || (echo "Error detected" && ls -l /apt-mirror-cache && cat /apt-mirror-cache/mirror.list && exit 1)
 
       - name: Extract URLs from metadata
+        if: success()
         run: |
           mkdir -p batch-files
           grep -oP 'http.*\.deb' /apt-mirror-cache/var/spool/apt-mirror/mirror/*/dists/*/binary-*/Packages > urls.txt
