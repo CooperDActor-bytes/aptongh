@@ -1,7 +1,7 @@
 name: Generate and Split URL List
 
 on:
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
 
 jobs:
   generate-batches:
@@ -11,53 +11,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Install apt-mirror
-        run: sudo apt-get update && sudo apt-get install -y apt-mirror
-
-      - name: Create apt-mirror directories and configuration
+      - name: Update package list and extract URLs
         run: |
-          sudo mkdir -p /apt-mirror-cache/var/spool/apt-mirror
-          sudo mkdir -p /apt-mirror-cache/var
-          sudo mkdir -p /apt-mirror-cache/skel
-          echo "
-          set base_path    /apt-mirror-cache
-          set mirror_path  /apt-mirror-cache/var/spool/apt-mirror
-          set skel_path    /apt-mirror-cache/skel
-          set var_path     /apt-mirror-cache/var
-          set clean_interval daily
-          set nthreads     20
-          set _tilde       0
-
-          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
-          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-          " | sudo tee /apt-mirror-cache/mirror.list
-          sudo chmod -R 777 /apt-mirror-cache
-          echo "Mirror configuration:"
-          cat /apt-mirror-cache/mirror.list
-
-      - name: Debug apt-mirror dry-run
-        run: |
-          sudo apt-mirror --config=/apt-mirror-cache/mirror.list --dry-run || (
-            echo "Error detected"
-            echo "Contents of /apt-mirror-cache:"
-            ls -l /apt-mirror-cache
-            echo "Contents of mirror.list:"
-            cat /apt-mirror-cache/mirror.list
-            exit 1
-          )
-
-      - name: Extract URLs from metadata
-        if: ${{ success() }}
-        run: |
+          sudo apt-get update
           mkdir -p batch-files
-          grep -oP 'http.*\.deb' /apt-mirror-cache/var/spool/apt-mirror/mirror/*/dists/*/binary-*/Packages > urls.txt
-          echo "Generated URLs list: $(wc -l < urls.txt) entries"
-          cat urls.txt | head -n 10  # Preview the first 10 URLs for debugging
+          # Extract URLs for the main repository and update it for other repositories
+          for package in $(apt list --installed | awk '{print $1}' | tail -n +2); do
+              apt-cache showpkg "$package" | grep 'Filename' | sed 's/Filename: //' >> urls.txt
+          done
 
       - name: Split URLs into batches of 1,000
         run: |
-          mkdir -p batch-files
           split -l 1000 urls.txt batch-files/batch_
           echo "Split URLs into $(ls batch-files | wc -l) batches"
 
@@ -68,7 +32,5 @@ jobs:
           git config user.name "SaltyBot[bot]"
           git config user.email "bots@salty.cool"
           git add batches/
-          git commit -m "Indexed batch files"
+          git commit -m "Indexed package URLs"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
